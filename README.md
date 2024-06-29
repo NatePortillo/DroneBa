@@ -1,15 +1,15 @@
 # DroneBa
 FPGA-Based Drone Flight Controller and Localization
 --------------------------------------------------------
-STM32 - Features code for RFID Reader, Servos, and Infrared Sensors. Used to help facilitate docking. FreeRTOS Based.
+STM32-src - Features code for RFID Reader, Servos, and Infrared Sensors. Used to help facilitate docking. FreeRTOS Based.
 
-ESP32 - Features RX UWB control that communicates to PynqZ1 over UART for closeness data. TX communicates to RX over BT when near a certain distance threshold. 
+ESP32-src - Features RX UWB control that communicates to PynqZ1 over UART for closeness data. TX communicates to RX over BT when near a certain distance threshold. 
 
-Vitis(Pynq Z1) - Features majority of sensor communication, flight controller functionality, and localization (still under development).
+Vitis(Pynq Z1)-src - Features majority of sensor communication, flight controller functionality, and localization (still under development).
 
-Vivado - Features the hardware block design and hardware constrains file.
+Vivado-src - Features the hardware block design and hardware constrains file.
 
-3D - Features the drone and docking station CAD models (docking station under development).
+3D-src - Features the drone and docking station CAD models (docking station under development).
 
 -------------------------------------------------------
 Hardware:
