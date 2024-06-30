@@ -32,3 +32,4 @@ TODO: Fix current drone self-balancing oscillations. PID tuning still needs work
 
 TODO: Manufacture docking station components.
 
+NOTE: This is an ongoing side-project that I work on alongside school, internships, etc.
