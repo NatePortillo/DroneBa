@@ -277,9 +277,16 @@ void setup()
             Serial.write(SerialBT.read()); //Receive responses from anchor
         }
       }else{
+        if (SerialBT.connected()) {
           Serial.println("Distance greater than 100"); // DEBUG
+           SerialBT.println(String("0xEE")); //Send the 'closeness' command to anchor.
           closeRange = 0xEE;
+          delay(1000);
         }
+        if (SerialBT.available()) { 
+          Serial.write(SerialBT.read()); //Receive responses from anchor
+        }
+      }
       /*--------------------------VL530X RANGING MEASUREMENTS---------------------------*/
       /*I2C Pins: IO22 = SCL, IO21 = SDA*/
       VL53L0X_RangingMeasurementData_t measure;

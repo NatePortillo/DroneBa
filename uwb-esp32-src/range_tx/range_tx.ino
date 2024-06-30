@@ -204,7 +204,7 @@ void setup()
         String command = SerialBT.readStringUntil('\n'); //Read BT data 
         Serial.println(String(command));
         command.trim(); // This removes any whitespace or newline characters from both ends of the string
-
+        
         if (command == "0xCC") {
           Serial.println("Distance is below 100"); //DEBUG
           digitalWrite(2, HIGH);
@@ -214,6 +214,7 @@ void setup()
           digitalWrite(2, LOW);
         }
       }
+
       if (Serial.available()) { // Sending status back to Master
         SerialBT.write(Serial.read());
       }
