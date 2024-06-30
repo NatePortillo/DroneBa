@@ -53,13 +53,6 @@ const osThreadAttr_t ledTask_attributes = {
   .priority = (osPriority_t) osPriorityBelowNormal,
   .stack_size = 128 * 4
 };
-/* Definitions for lightTransmit */
-osThreadId_t lightTransmitHandle;
-const osThreadAttr_t lightTransmit_attributes = {
-  .name = "lightTransmit",
-  .priority = (osPriority_t) osPriorityBelowNormal1,
-  .stack_size = 128 * 4
-};
 /* Definitions for motorSemaphore */
 osSemaphoreId_t motorSemaphoreHandle;
 const osSemaphoreAttr_t motorSemaphore_attributes = {
@@ -77,12 +70,8 @@ const osThreadAttr_t motorRun_attributes = {
 };
 void motorRunTask(void *arguement);
 /* USER CODE END FunctionPrototypes */
-
 void ledBlink(void *argument);
-void readRFIDTask(void *argument);
-
-void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
-
+void MX_FREERTOS_Init(void);
 /**
   * @brief  FreeRTOS initialization
   * @param  None
@@ -90,7 +79,9 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
+	/*INITIALIZE RFID READER*/
 	rc522_init();
+
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -113,9 +104,6 @@ void MX_FREERTOS_Init(void) {
   /* creation of ledTask */
   ledTaskHandle = osThreadNew(ledBlink, NULL, &ledTask_attributes);
 
-  /* creation of lightTransmit */
-  lightTransmitHandle = osThreadNew(readRFIDTask, NULL, &lightTransmit_attributes);
-
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   motorRunHandle = osThreadNew(motorRunTask, NULL, &motorRun_attributes);
@@ -128,7 +116,7 @@ void MX_FREERTOS_Init(void) {
 }
 /* USER CODE BEGIN Header_ledBlink */
 /**
-* @brief Function implementing the ledTask thread.
+* @brief Blinks debug LED. Light should constant be blinking.
 * @param argument: Not used
 * @retval None
 */
@@ -139,45 +127,32 @@ void ledBlink(void *argument)
 	/*
 	 * Function used for debugging. Green LED Blink
 	 */
-  for(;;)
-  {
-		GPIOC->BSRR = 1<<7;
-		osDelay(100);
-		GPIOC->BSRR = 1<<(7+16);
-	    osDelay(100);
-  }
+	  for(;;)
+	  {
+			GPIOC->BSRR = 1<<7;
+			osDelay(100);
+			GPIOC->BSRR = 1<<(7+16);
+			osDelay(100);
+	  }
   /* USER CODE END ledTask */
-}
-
-/* USER CODE BEGIN Header_readRFIDTask */
-/**
-* @brief Function implementing the readRFID thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_readRFIDTask */
-void readRFIDTask(void *argument)
-{
-  /* USER CODE BEGIN lightTransmit */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END lightTransmit */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-void motorRunTask(void *argument){
-/*
+
+/**
+ * @brief Task to control motors based on RFID and GPIO pin interrupts.
+ *
  * Interrupt Driven Approach:
  * When interrupt for RFID comes in, take semaphore, control motors.
- * When interrupt for Motor comes in(GPIO Pin), take semaphore, control motor.
+ * When interrupt for Motor comes in (GPIO Pin), take semaphore, control motor.
+ *
+ * @param argument Pointer to task arguments (not used).
  */
+void motorRunTask(void *argument){
 	for(;;)
 	{
-		if(osSemaphoreAcquire(motorSemaphoreHandle, 10000) == osOK){
+		if(osSemaphoreAcquire(motorSemaphoreHandle, 10000) == osOK){ //Allow motor control only if semaphore present
 		  	uint8_t rfid_id[4] = {0,0,0,0};
 				if(rc522_checkCard(rfid_id))
 				{
@@ -201,7 +176,7 @@ void motorRunTask(void *argument){
 				osDelay(1000);
 		}else{
 			/*
-			 * LED Red
+			 * Blink LED Red Debug LED
 			 */
 			GPIOG->BSRR = 1<<(2);
 			osDelay(100);
@@ -214,27 +189,22 @@ void motorRunTask(void *argument){
 	}
 }
 
-// External Interrupt ISR Handler CallBackFun
+/**
+ * @brief External interrupt callback function.
+ *(PROTOTYPE FUNCTIONALITY)
+ * This function is called when an interrupt arises from external manual control switch.
+ *
+ * @param GPIO_Pin The GPIO pin that triggered the interrupt.
+ */
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 {
-    if(GPIO_Pin == GPIO_PIN_10) // INT Source is pin C10
+    if(GPIO_Pin == GPIO_PIN_10)
     {
-    //Give semaphore to motorRunTask
+    	//Give semaphore to motorRunTask
     	osSemaphoreRelease(motorSemaphoreHandle);
-    	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+    	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET); //Turn on debug LED
     }
 }
-
-/*OLD PWM MOTOR CODE
- *  HAL_TIM_Base_Start(&htim1);
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_RESET);
-	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 100);
-	for(int i = 0; i < 1000000; i++){
-	}
-	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
- *  */
 
 /* USER CODE END Application */
 
