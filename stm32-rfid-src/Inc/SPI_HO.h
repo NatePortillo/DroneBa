@@ -10,6 +10,7 @@
 
 #include "stdint.h"
 
+/*Function Prototypes*/
 void SPI_Init(void);
 
 #endif /* INC_SPI_HO_H_ */

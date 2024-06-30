@@ -114,79 +114,20 @@
 #define MFRC522_MAX_LEN         16
 
 
-/**
- * @brief initialize function
- */
+/*Function Prototypes */
 void rc522_init(void);
-
-/**
- * @brief read register
- */
 uint8_t rc522_regRead8(uint8_t reg);
-
-/**
- * @brief write register
- */
 void rc522_regWrite8(uint8_t reg, uint8_t data8);
-
-/**
- * @brief set bit
- */
 void rc522_setBit(uint8_t reg, uint8_t mask);
-
-/**
- * @brief clear bit
- */
 void rc522_clearBit(uint8_t reg, uint8_t mask);
-
-/**
- * @brief reset function
- */
 void rc522_reset(void);
-
-/**
- * @brief Antenna ON
- */
 void rc522_antennaON(void);
-
-/**
- * @brief Check card
- */
 bool rc522_checkCard(uint8_t *id);
-
-/**
- * @brief Request function
- */
 bool rc522_request(uint8_t reqMode, uint8_t *tagType);
-
-/**
- * @brief to Card
- */
-bool rc522_toCard(
-    uint8_t command,
-    uint8_t* sendData,
-    uint8_t sendLen,
-    uint8_t* backData,
-    uint16_t* backLen);
-
-/**
- * @brief Anti-Collis
- */
+bool rc522_toCard(uint8_t command,uint8_t* sendData,uint8_t sendLen,uint8_t* backData,uint16_t* backLen);
 bool rc522_antiColl(uint8_t* serNum);
-
-/**
- * @brief Halt
- */
 void rc522_halt(void);
-
-/**
- * @brief calculate CRC
- */
 void rc522_calculateCRC(uint8_t*  pIndata, uint8_t len, uint8_t* pOutData);
-
-/**
- * @brief compare IDs
- */
 bool rc522_compareIds(uint8_t *idCurrent, uint8_t *idReference);
 
 

@@ -8,27 +8,13 @@
  * PB0  ->CS
  * */
 
-
-/**
- * @brief initialize function
- */
-
-/**
- * @brief read register
- */
 SPI_HandleTypeDef hspi1;
 
-bool rc522_toCard(
-    uint8_t command,
-    uint8_t* sendData,
-    uint8_t sendLen,
-    uint8_t* backData,
-    uint16_t* backLen);
 
-bool rc522_request(uint8_t reqMode, uint8_t *tagType);
-
-bool rc522_antiColl(uint8_t* serNum);
-
+/**
+ * @brief Writes to the CS pin of the RFID; Basic SPI functionality - GPIOB
+ * @param state The state to set the CS pin
+ *  */
 void spi_cs_rfid_write(bool state)
 {
 	if(state)
@@ -41,33 +27,45 @@ void spi_cs_rfid_write(bool state)
 	  }
 }
 
+
+/**
+ * @brief Reads an 8-bit register from the RC522
+ * @param reg The register to read from
+ * @return The value read from the register
+ */
 uint8_t rc522_regRead8(uint8_t reg)
 {
+
+  uint8_t dataRd=0;
+
   spi_cs_rfid_write(0);
   reg = ((reg << 1) & 0x7E) | 0x80;
-  //SPI_Transmit(&reg, 1);
   HAL_SPI_Transmit(&hspi1, &reg, 1, HAL_MAX_DELAY);
-  uint8_t dataRd=0;
-  //SPI_Receive(&dataRd, 1);
   HAL_SPI_Receive(&hspi1, &dataRd, 1, HAL_MAX_DELAY);
   spi_cs_rfid_write(1);
+
   return dataRd;
 }
 
+
 /**
- * @brief write register
+ * @brief Writes an 8-bit value to a register in the RC522
+ * @param reg The register to write to
+ * @param data8 The data to write
  */
 void rc522_regWrite8(uint8_t reg, uint8_t data8)
 {
   spi_cs_rfid_write(0);
+
   uint8_t txData[2] = {0x7E&(reg << 1), data8};
-  //SPI_Transmit(txData, 2);
   HAL_SPI_Transmit(&hspi1, txData, 2, HAL_MAX_DELAY);
   spi_cs_rfid_write(1);
 }
 
 /**
- * @brief set bit
+ * @brief Sets specific bits in a register
+ * @param reg The register to modify
+ * @param mask The mask of bits to set
  */
 void rc522_setBit(uint8_t reg, uint8_t mask)
 {
@@ -75,7 +73,9 @@ void rc522_setBit(uint8_t reg, uint8_t mask)
 }
 
 /**
- * @brief clear bit
+ * @brief Clears specific bits in a register
+ * @param reg The register to modify
+ * @param mask The mask of bits to clear
  */
 void rc522_clearBit(uint8_t reg, uint8_t mask)
 {
@@ -83,7 +83,7 @@ void rc522_clearBit(uint8_t reg, uint8_t mask)
 }
 
 /**
- * @brief reset function
+ * @brief Resets the RC522
  */
 void rc522_reset(void)
 {
@@ -91,43 +91,48 @@ void rc522_reset(void)
 }
 
 /**
- * @brief Antenna ON
+ * @brief Turns on the antenna of the RC522
  */
 void rc522_antennaON(void)
 {
   uint8_t temp;
 
   temp = rc522_regRead8(MFRC522_REG_TX_CONTROL);
-  if (!(temp & 0x03)) {
+  if (!(temp & 0x03)) { //Check if antenna is not already on, otherwise turn on
     rc522_setBit(MFRC522_REG_TX_CONTROL, 0x03);
   }
 }
 
 /**
- * @brief Check card
+ * @brief Checks if a card is present and returns its ID
+ * @param id The ID of the card to be returned
+ * @return True if a card is detected, False otherwise
  */
 bool rc522_checkCard(uint8_t *id)
 {
   bool status=false;
-  //Find cards, return card type
-    status = rc522_request(PICC_REQIDL, id);
-    if (status == true) {
-      //Card detected
-      //Anti-collision, return card serial number 4 bytes
-      status = rc522_antiColl(id);
+
+    status = rc522_request(PICC_REQIDL, id); //Find cards, return card type
+    if (status == true) { //Detected a card
+      status = rc522_antiColl(id); //Anti-collision, return card serial number 4 bytes
     }
-    rc522_halt();      //Command card into hibernation
+    rc522_halt();//Command card into hibernation
 
     return status;
 }
 
+
 /**
- * @brief Request function
+ * @brief Sends a request to the RC522 and waits for a response
+ * @param reqMode The request mode
+ * @param tagType The tag type to be returned
+ * @return True if successful, False otherwise
  */
 bool rc522_request(uint8_t reqMode, uint8_t *tagType)
 {
   bool status=false;
   uint16_t backBits;
+
   rc522_regWrite8(MFRC522_REG_BIT_FRAMING, 0x07);
   tagType[0] = reqMode;
   status = rc522_toCard(PCD_TRANSCEIVE, tagType, 1, tagType, &backBits);
@@ -138,14 +143,15 @@ bool rc522_request(uint8_t reqMode, uint8_t *tagType)
 }
 
 /**
- * @brief to Card
+ * @brief Communicates with the RC522 card
+ * @param command The command to send
+ * @param sendData The data to send
+ * @param sendLen Length of the data to send
+ * @param backData The data received from the card
+ * @param backLen Length of the data received
+ * @return True if successful, False otherwise
  */
-bool rc522_toCard(
-    uint8_t command,
-    uint8_t* sendData,
-    uint8_t sendLen,
-    uint8_t* backData,
-    uint16_t* backLen)
+bool rc522_toCard(uint8_t command, uint8_t* sendData, uint8_t sendLen, uint8_t* backData, uint16_t* backLen)
 {
   bool status = false;
   uint8_t irqEn = 0x00;
@@ -241,24 +247,22 @@ bool rc522_toCard(
   return status;
 }
 
+/**
+ * @brief Anti-collision detection to get the serial number of the card
+ * @param serNum The serial number to be returned
+ * @return True if successful, False otherwise
+ */
 bool rc522_antiColl(uint8_t* serNum)
 {
   bool status;
   uint8_t i;
   uint8_t serNumCheck = 0;
   uint16_t unLen;
-  //for (i = 0; i < 4; i++)
-//    printf("Anticoll In %d: 0x%02x\r\n", i, serNum[i]);
-
-
   rc522_regWrite8(MFRC522_REG_BIT_FRAMING, 0x00);    //TxLastBists = BitFramingReg[2..0]
 
   serNum[0] = PICC_ANTICOLL;
   serNum[1] = 0x20;
   status = rc522_toCard(PCD_TRANSCEIVE, serNum, 2, serNum, &unLen);
-
-  //for (i = 0; i < 4; i++)
-//      printf("Anticoll ToCard %d: 0x%02x\r\n", i, serNum[i]);
 
   if (status == true) {
     //Check card serial number
@@ -284,13 +288,18 @@ void rc522_halt(void)
   rc522_toCard(PCD_TRANSCEIVE, buff, 4, buff, &unLen);
 }
 
+/**
+ * @brief Calculates the CRC for the given data
+ * @param pIndata The input data
+ * @param len The length of the input data
+ * @param pOutData The calculated CRC
+ */
 void rc522_calculateCRC(uint8_t*  pIndata, uint8_t len, uint8_t* pOutData)
 {
   uint8_t i, n;
 
   rc522_clearBit(MFRC522_REG_DIV_IRQ, 0x04);     //CRCIrq = 0
   rc522_setBit(MFRC522_REG_FIFO_LEVEL, 0x80);      //Clear the FIFO pointer
-  //Write_MFRC522(CommandReg, PCD_IDLE);
 
   //Writing data to the FIFO
   for (i = 0; i < len; i++) {
@@ -311,7 +320,10 @@ void rc522_calculateCRC(uint8_t*  pIndata, uint8_t len, uint8_t* pOutData)
 }
 
 /**
- * @brief compare IDs
+ * @brief Compares two card IDs
+ * @param idCurrent The current ID
+ * @param idReference The reference ID
+ * @return True if IDs match, False otherwise
  */
 bool rc522_compareIds(uint8_t *idCurrent, uint8_t *idReference)
 {
@@ -326,18 +338,16 @@ bool rc522_compareIds(uint8_t *idCurrent, uint8_t *idReference)
   return true;
 }
 
+
+/**
+ * @brief Initializes the RC522 module
+ */
 void rc522_init(void)
 {
-	/*
-	 * STM32 ->RFID
-	 * SPI  -> SPI
-	 * PA8  ->RST
-	 * PC4  ->CS
-	 * */
   SPI_Init();
 
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
-  for(volatile int i=0;i<100000;i++);
+  for(volatile int i=0;i<100000;i++); //Loop as delay since freeRTOS is being used.
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
   for(volatile int i=0;i<100000;i++);
   rc522_reset();
