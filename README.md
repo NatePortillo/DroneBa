@@ -27,6 +27,8 @@ Hardware:
   11) Basic Drone Hardware - LiPo 3S 1500mAh Battery, 4 Brushless Motors, Power Distribution Board, 4 ESCs, RC Transmitter
 ------------------------------------------------------------
 Blockers - TODO:
+
 TODO: Fix current drone self-balancing oscillations. PID tuning still needs work.
+
 TODO: Manufacture docking station components.
 
