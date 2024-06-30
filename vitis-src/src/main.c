@@ -130,9 +130,9 @@ int main(void)
             dataBuffer[5] = Gz;
         */
         GY521_ReadData(&IicInstance, GY521_DataBuffer);
-        float roll = GY521_DataBuffer[3];  // Replace with actual index for roll
-        float pitch = GY521_DataBuffer[4]; // Replace with actual index for pitch
-        float yaw = GY521_DataBuffer[5];   // Replace with actual index for yaw
+        float roll = GY521_DataBuffer[3];  
+        float pitch = GY521_DataBuffer[4]; 
+        float yaw = GY521_DataBuffer[5];   
         float roll_output = PID_Compute(&pid_roll, roll);
         float pitch_output = PID_Compute(&pid_pitch, pitch);
         float yaw_output = PID_Compute(&pid_yaw, yaw);
@@ -153,25 +153,25 @@ int main(void)
             //PWM_SetDutyCycle(&TimerCounter3, PWM_PERIOD, throttle );
 
             // Adjust motor signals based on PID outputs
-            PWM_SetDutyCycle(&TimerCounter0, PWM_PERIOD, throttle + roll_output - pitch_output + yaw_output);
-            PWM_SetDutyCycle(&TimerCounter1, PWM_PERIOD, throttle - roll_output - pitch_output - yaw_output);
-            PWM_SetDutyCycle(&TimerCounter2, PWM_PERIOD, throttle + roll_output + pitch_output - yaw_output);
-            PWM_SetDutyCycle(&TimerCounter3, PWM_PERIOD, throttle - roll_output + pitch_output + yaw_output);
+            PWM_SetDutyCycle(&TimerCounter0, PWM_PERIOD, throttle + roll_output - pitch_output + yaw_output); // Motor 0 (front left)
+            PWM_SetDutyCycle(&TimerCounter1, PWM_PERIOD, throttle - roll_output - pitch_output - yaw_output); // Motor 1 (front right)
+            PWM_SetDutyCycle(&TimerCounter2, PWM_PERIOD, throttle + roll_output + pitch_output - yaw_output); // Motor 2 (rear right)
+            PWM_SetDutyCycle(&TimerCounter3, PWM_PERIOD, throttle - roll_output + pitch_output + yaw_output); // Motor 3 (rear left)
         }
 
 
-        //ESP32_Read(&UartInstance, ESP32_RecieveBuffer);
-        bmp390_basic_read(&temperature_c, &pressure_pa);
+        ESP32_Read(&UartInstance, ESP32_RecieveBuffer); //Localization data packet
+        bmp390_basic_read(&temperature_c, &pressure_pa); //Used for altimeter estimates
         pressure_pa = pressure_pa / 100;
 
-        //Status = SendDMAPacket(&AxiDma, ESP32_RecieveBuffer, 13);
-        //if (Status != XST_SUCCESS) {
-        //    xil_printf("DMA UART transfer to PL failed %d\r\n", Status);
-        //}
+        Status = SendDMAPacket(&AxiDma, ESP32_RecieveBuffer, 13);
+        if (Status != XST_SUCCESS) {
+            xil_printf("DMA UART transfer to PL failed %d\r\n", Status);
+        }
 
-        //Status = CheckDmaResult(&AxiDma);
-        //if (Status != XST_SUCCESS) {
-        //    xil_printf("AXI DMA SG Polling Example Failed\r\n");
-        //}
+        Status = CheckDmaResult(&AxiDma);
+        if (Status != XST_SUCCESS) {
+            xil_printf("AXI DMA SG Polling Example Failed\r\n");
+        }
     }
 }

@@ -1,9 +1,9 @@
 #include <stdbool.h>
 
 /* Defines */
-#define KPROPORTIONAL   1.0 //11
-#define KINTEGRAL       0.01 //0.09
-#define KDERIVITIVE     .1 //10
+#define KPROPORTIONAL   11.0 //11
+#define KINTEGRAL       0.09 //0.09
+#define KDERIVITIVE     10.0 //10
 #define SET_POINT       0.0
 
 /* Variables and Data Structures */
