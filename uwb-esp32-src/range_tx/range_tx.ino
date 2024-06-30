@@ -4,12 +4,12 @@
  
 #define APP_NAME "DS TWR INIT v1.0"
  
-// connection pins
-const uint8_t PIN_RST = 27; // reset pin
-const uint8_t PIN_IRQ = 34; // irq pin
-const uint8_t PIN_SS = 4; // spi select pin
+/* SPI COMMUNICATION PINS*/ 
+const uint8_t PIN_RST = 27; //RESET PIN
+const uint8_t PIN_IRQ = 34; //IRQ PIN
+const uint8_t PIN_SS = 4; // SPI SELECT PIN
  
-/* Default communication configuration. We use default non-STS DW mode. */
+/*------------------UWB CONFIGURATION---------------------- */
 static dwt_config_t config = {
   5,               /* Channel number. */
   DWT_PLEN_128,    /* Preamble length. Used in TX only. */
@@ -84,144 +84,95 @@ static uint64_t final_tx_ts;
  * These values can be calibrated prior to taking reference measurements.
  * See NOTE 8 below. */
 extern dwt_txconfig_t txconfig_options;
-
 /*--------------------------BLUETOOTH CONFIGURATION---------------------------*/
 BluetoothSerial SerialBT;
-/*! ---------------------------------------------------------------------------
- * @fn ds_twr_initiator()
- *
- * @brief Application entry point.
- *
- * @param  none
- *
- * @return none
- */
+
 void setup()
 {
+  /*--------------------------UART SEND CONFIGURATION-----------------------*/
   UART_init();
+  /*--------------------------UWB CONFIGURATION-----------------------------*/
   test_run_info((unsigned char *)APP_NAME);
+  /*--------------------------SPI CONFIGURATION-----------------------------*/
   spiBegin(PIN_IRQ, PIN_RST);
   spiSelect(PIN_SS);
-
-/*--------------------------BLUETOOTH CONFIGURATION---------------------------*/
-   SerialBT.begin("ESP32_Transmitter"); //Bluetooth device name // <------- set this to be the same as the name you chose above!!!!!
+  /*--------------------------BLUETOOTH CONFIGURATION---------------------------*/
+   SerialBT.begin("ESP32_Transmitter"); //Bluetooth device name 
    Serial.println("The device started, now you can pair it with bluetooth!");
-/*--------------------------B-------------------------------------------------*/
-    Sleep(2);
-
-    /* Need to make sure DW IC is in IDLE_RC before proceeding */
-    while (!dwt_checkidlerc()) { 
+   Sleep(2);
+  /*-------------------UWB CONFIGURATION CONTINUED---------------------------------*/
+  while (!dwt_checkidlerc()) {  // Need to make sure DW IC is in IDLE_RC before proceeding
     UART_puts("IDLE FAILED\r\n");
     while (1) ;
+  }
 
-    }
-
-    if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR) {
-        UART_puts("INIT FAILED\r\n");      
-        //LOG_INF("INIT FAILED");
-        while (1) { /* spin */ };
-    }
-
-    /* Configure DW IC. See NOTE 2 below. */
-    /* if the dwt_configure returns DWT_ERROR either the PLL or RX calibration 
-     * has failed the host should reset the device */
-    if (dwt_configure(&config)) {
-       UART_puts("CONFIG FAILED\r\n");
-        //LOG_INF("CONFIG FAILED");
-        while (1) { /* spin */ };
-    }
-
-    /* Configure the TX spectrum parameters (power, PG delay and PG count) */
-    dwt_configuretxrf(&txconfig_options);
-
-    /* Apply default antenna delay value. See NOTE 1 below. */
-    dwt_setrxantennadelay(RX_ANT_DLY);
-    dwt_settxantennadelay(TX_ANT_DLY);
-
-    /* Set expected response's delay and timeout. See NOTE 4, 5 and 7 below.
-     * As this example only handles one incoming frame with always the same 
-     * delay and timeout, those values can be set here once for all. */
-    dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS);
-    dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
-    dwt_setpreambledetecttimeout(PRE_TIMEOUT);
-
-    /* Next can enable TX/RX states output on GPIOs 5 and 6 to help debug, 
-     * and also TX/RX LEDs.
-     * Note, in real low power applications the LEDs should not be used. */
-    dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE);
-
-    dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
-
-    //LOG_INF("Initiator ready");
-
+  if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR) {
+      UART_puts("INIT FAILED\r\n");      
+      while (1) { /* spin */ };
+  }
+  if (dwt_configure(&config)) {
+      UART_puts("CONFIG FAILED\r\n");
+      while (1) { /* spin */ };
+  }
+  dwt_configuretxrf(&txconfig_options); //Configure the TX spectrum parameters
+  dwt_setrxantennadelay(RX_ANT_DLY); // Apply default antenna delay value
+  dwt_settxantennadelay(TX_ANT_DLY);
+  dwt_setrxaftertxdelay(POLL_TX_TO_RESP_RX_DLY_UUS); //Set expected response's delay and timeout
+  dwt_setrxtimeout(RESP_RX_TIMEOUT_UUS);
+  dwt_setpreambledetecttimeout(PRE_TIMEOUT);
+  dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE); //DEBUG LEDs
+  dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 }
-    void loop() {/* Loop forever initiating ranging exchanges. */
-    while (1) {
-
-        /* Write frame data to DW IC and prepare transmission. See NOTE 9 below. */
-        tx_poll_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
+    void loop()  {
+      while (1) {
+        tx_poll_msg[ALL_MSG_SN_IDX] = frame_seq_nb; //Write frame data to DW IC and prepare transmission
         dwt_writetxdata(sizeof(tx_poll_msg), tx_poll_msg, 0); /* Zero offset in TX buffer. */
         dwt_writetxfctrl(sizeof(tx_poll_msg)+FCS_LEN, 0, 1); /* Zero offset in TX buffer, ranging. */
-
         /* Start transmission, indicating that a response is expected so that
          * reception is enabled automatically after the frame is sent and the 
          * delay set by dwt_setrxaftertxdelay() has elapsed. */
         dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
-
         /* We assume that the transmission is achieved correctly, poll for 
-         * reception of a frame or error/timeout. See NOTE 10 below. */
+         * reception of a frame or error/timeout. */
         while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & 
                                                (SYS_STATUS_RXFCG_BIT_MASK | 
                                                 SYS_STATUS_ALL_RX_TO      | 
                                                 SYS_STATUS_ALL_RX_ERR)))
         { /* spin */ };
-
-        /* Increment frame sequence number after transmission of the 
-         * poll message (modulo 256). */
         frame_seq_nb++;
-
         if (status_reg & SYS_STATUS_RXFCG_BIT_MASK) {
 
             /* Clear good RX frame event and TX frame sent in the DW IC status register. */
             dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_TXFRS_BIT_MASK);
-
             /* A frame has been received, read it into the local buffer. */
             uint32_t frame_len = dwt_read32bitreg(RX_FINFO_ID) & FRAME_LEN_MAX_EX;
             if (frame_len <= RX_BUF_LEN) {
                 dwt_readrxdata(rx_buffer, frame_len, 0);
             }
-
             /* Check that the frame is the expected response from the 
              * companion "DS TWR responder" example.
              * As the sequence number field of the frame is not relevant, 
              * it is cleared to simplify the validation of the frame. */
             rx_buffer[ALL_MSG_SN_IDX] = 0;
             if (memcmp(rx_buffer, rx_resp_msg, ALL_MSG_COMMON_LEN) == 0) {
-
                 uint32_t final_tx_time;
-
                 /* Retrieve poll transmission and response reception timestamp. */
                 poll_tx_ts = get_tx_timestamp_u64();
                 resp_rx_ts = get_rx_timestamp_u64();
-
                 /* Compute final message transmission time. See NOTE 11 below. */
                 final_tx_time = (resp_rx_ts + (RESP_RX_TO_FINAL_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
                 dwt_setdelayedtrxtime(final_tx_time);
-
                 /* Final TX timestamp is the transmission time we programmed 
                  * plus the TX antenna delay. */
                 final_tx_ts = (((uint64_t)(final_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY;
-
                 /* Write all timestamps in the final message. See NOTE 12 below. */
                 final_msg_set_ts(&tx_final_msg[FINAL_MSG_POLL_TX_TS_IDX], poll_tx_ts);
                 final_msg_set_ts(&tx_final_msg[FINAL_MSG_RESP_RX_TS_IDX], resp_rx_ts);
                 final_msg_set_ts(&tx_final_msg[FINAL_MSG_FINAL_TX_TS_IDX], final_tx_ts);
-
                 /* Write and send final message. See NOTE 9 below. */
                 tx_final_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
                 dwt_writetxdata(sizeof(tx_final_msg), tx_final_msg, 0); /* Zero offset in TX buffer. */
                 dwt_writetxfctrl(sizeof(tx_final_msg)+FCS_LEN, 0, 1); /* Zero offset in TX buffer, ranging bit set. */
-
                 /* If dwt_starttx() returns an error, abandon this ranging exchange and
                  * proceed to the next one. See NOTE 13 below. */
                 int ret = dwt_starttx(DWT_START_TX_DELAYED);
@@ -246,24 +197,22 @@ void setup()
 
         /* Execute a delay between ranging exchanges. */
         Sleep(RNG_DELAY_MS);
-    
-/*--------------------------BLUETOOTH CONFIGURATION---------------------------*/
+
+      /*--------------------------BLUETOOTH CONFIGURATION---------------------------*/
       if (SerialBT.available()) {
-        Serial.println("I am available");
-        String command = SerialBT.readStringUntil('\n');
+        Serial.println("I am available"); //DEBUG - BT Available and successfully connected.
+        String command = SerialBT.readStringUntil('\n'); //Read BT data 
         Serial.println(String(command));
         command.trim(); // This removes any whitespace or newline characters from both ends of the string
 
         if (command == "0xCC") {
-          Serial.println("Distance is below 100");
+          Serial.println("Distance is below 100"); //DEBUG
         }else if (command == "0xEE") {
-          Serial.println("Distance is above 100");
+          Serial.println("Distance is above 100"); //DEBUG
         }
       }
-      // Sending status back to Master
-      if (Serial.available()) {
+      if (Serial.available()) { // Sending status back to Master
         SerialBT.write(Serial.read());
       }
-/*------------------------------------------------------------------------*/
     }
 }
