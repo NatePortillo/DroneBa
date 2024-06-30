@@ -207,8 +207,11 @@ void setup()
 
         if (command == "0xCC") {
           Serial.println("Distance is below 100"); //DEBUG
-        }else if (command == "0xEE") {
+          digitalWrite(2, HIGH);
+
+        }else{
           Serial.println("Distance is above 100"); //DEBUG
+          digitalWrite(2, LOW);
         }
       }
       if (Serial.available()) { // Sending status back to Master
