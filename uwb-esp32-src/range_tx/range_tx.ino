@@ -8,7 +8,10 @@
 const uint8_t PIN_RST = 27; //RESET PIN
 const uint8_t PIN_IRQ = 34; //IRQ PIN
 const uint8_t PIN_SS = 4; // SPI SELECT PIN
- 
+
+/* CLOSENESS CONTROL DECLARATIONS*/ 
+String command = "0xEE";
+const int closenessControlPin = 26; 
 /*------------------UWB CONFIGURATION---------------------- */
 static dwt_config_t config = {
   5,               /* Channel number. */
@@ -100,6 +103,8 @@ void setup()
    SerialBT.begin("ESP32_Transmitter"); //Bluetooth device name 
    Serial.println("The device started, now you can pair it with bluetooth!");
    Sleep(2);
+   pinMode(closenessControlPin, OUTPUT); // Set the GPIO pin as an output
+   digitalWrite(closenessControlPin, LOW); // Ensure the LED is off initially
   /*-------------------UWB CONFIGURATION CONTINUED---------------------------------*/
   while (!dwt_checkidlerc()) {  // Need to make sure DW IC is in IDLE_RC before proceeding
     UART_puts("IDLE FAILED\r\n");
@@ -201,22 +206,21 @@ void setup()
       /*--------------------------BLUETOOTH CONFIGURATION---------------------------*/
       if (SerialBT.available()) {
         Serial.println("I am available"); //DEBUG - BT Available and successfully connected.
-        String command = SerialBT.readStringUntil('\n'); //Read BT data 
+        command = SerialBT.readStringUntil('\n'); //Read BT data 
         Serial.println(String(command));
         command.trim(); // This removes any whitespace or newline characters from both ends of the string
-        
-        if (command == "0xCC") {
-          Serial.println("Distance is below 100"); //DEBUG
-          digitalWrite(2, HIGH);
-
-        }else{
-          Serial.println("Distance is above 100"); //DEBUG
-          digitalWrite(2, LOW);
-        }
       }
-
       if (Serial.available()) { // Sending status back to Master
         SerialBT.write(Serial.read());
       }
+
+      if (command == "0xCC") {
+          Serial.println("Distance is below 100"); //DEBUG
+          digitalWrite(closenessControlPin, HIGH); 
+
+        }else{
+          Serial.println("Distance is above 100"); //DEBUG
+          digitalWrite(closenessControlPin, LOW);
+        }
     }
 }
