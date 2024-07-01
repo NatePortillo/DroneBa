@@ -150,42 +150,42 @@ void ledBlink(void *argument)
  * @param argument Pointer to task arguments (not used).
  */
 void motorRunTask(void *argument){
+	uint8_t rfid_id[4] = {0, 0, 0, 0}; // Define the RFID ID array
 	for(;;)
 	{
 		if(osSemaphoreAcquire(motorSemaphoreHandle, 10000) == osOK){ //Allow motor control only if semaphore present
-		  	uint8_t rfid_id[4] = {0,0,0,0};
-				if(rc522_checkCard(rfid_id))
-				{
-					HAL_TIM_Base_Start(&htim1);
-					HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-					HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-					GPIOB->BSRR = 1<<7;
-					osDelay(1000);
-					GPIOB->BSRR = 1<<(7+16);
-					__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 50); //Go to 0
-					__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 50); //Go to 0
-					osDelay(1000);
-					//__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 75); //Go to 50
-					//__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 75); //Go to 0
-					//osDelay(1000);
-					__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 100); //Go to 100
-					__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 100); //Go to 100
-					HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-					HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-				}
-				osDelay(1000);
+			/*When closeness signal received */
+			HAL_TIM_Base_Start(&htim1);
+			HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+			HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+
+			GPIOB->BSRR = 1<<7; //Blue Debug LED
+			osDelay(1000);
+			GPIOB->BSRR = 1<<(7+16); //Blue Debug LED
+
+			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 50); //'Open Servos'
+			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 50); //'Open Servos'
+			//__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 100); // 'Close Servos'
+			//__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 100); // 'Close Servos'
+
+		    if (rc522_checkCard(rfid_id)) { // If RFID scan is successful
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 100); // 'Close Servos'
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 100); // 'Close Servos'
+		        HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+		        HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+		    }
+
+			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 		}else{
-			/*
-			 * Blink LED Red Debug LED
-			 */
+			/* Blink LED Red Debug LED*/
 			GPIOG->BSRR = 1<<(2);
 			osDelay(100);
 			GPIOG->BSRR = 1<<(2+16);
 			osDelay(100);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET); //Turn off debug LED
 		}
 		osDelay(1);
-
 	}
 }
 
@@ -198,10 +198,9 @@ void motorRunTask(void *argument){
  */
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
 {
-    if(GPIO_Pin == GPIO_PIN_10)
+    if(GPIO_Pin == GPIO_PIN_10) //GPIO ON -- Sent from ESP32, under 100mm in closeness
     {
-    	//Give semaphore to motorRunTask
-    	osSemaphoreRelease(motorSemaphoreHandle);
+    	osSemaphoreRelease(motorSemaphoreHandle); //Give semaphore to motorRunTask
     	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET); //Turn on debug LED
     }
 }
